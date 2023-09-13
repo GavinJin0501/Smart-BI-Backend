@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: Smart-BI-Backend
+
+  # default is dev env
+  profiles:
+    active: dev
+
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/smart_bi_db
+    username: root
+    password: 20073809aB
+
+  # support swagger 3
+  mvc:
+    pathmatch:
+      matching-strategy: ant_path_matcher
+
+  session:
+    timeout: 2592000
+
+  # file upload size limit
+  servlet:
+    multipart:
+      max-file-size: 10MB
+
+server:
+  address: 0.0.0.0
+  port: 8101
+  servlet:
+    context-path: /api
+    # cookie expires after 30 days
+    session:
+      cookie:
+        max-age: 2592000
+
+mybatis-plus:
+  type-aliases-package: com.gavinjin.smartbibackend
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: isDelete # 全局逻辑删除的实体字段名
+      logic-delete-value: 1 # 逻辑已删除值（默认为 1）
+      logic-not-delete-value: 0 # 逻辑未删除值（默认为 0）
