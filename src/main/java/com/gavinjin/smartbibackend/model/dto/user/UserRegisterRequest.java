@@ -1,4 +1,4 @@
-package com.gavinjin.smartbibackend.model.dto;
+package com.gavinjin.smartbibackend.model.dto.user;
 
 import lombok.Getter;
 

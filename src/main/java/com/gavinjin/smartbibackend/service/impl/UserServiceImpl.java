@@ -2,7 +2,7 @@ package com.gavinjin.smartbibackend.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
-import com.gavinjin.smartbibackend.model.dto.UserQueryRequest;
+import com.gavinjin.smartbibackend.model.dto.user.UserQueryRequest;
 import com.gavinjin.smartbibackend.util.SqlUtils;
 import com.gavinjin.smartbibackend.util.common.ErrorCode;
 import com.gavinjin.smartbibackend.util.common.UserRole;

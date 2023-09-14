@@ -5,6 +5,21 @@ package com.gavinjin.smartbibackend.util.constant;
  */
 public interface UserConstant {
     String USER_LOGIN_STATE = "user_login";
+
+    /**
+     * Default role
+     */
+    String DEFAULT_ROLE = "user";
+
+    /**
+     * admin role
+     */
+    String ADMIN_ROLE = "admin";
+
+
+    /**
+     * DB columns
+     */
     String DB_COL_ID = "id";
     String DB_COL_USER_ACCOUNT = "user_account";
     String DB_COL_USER_PASSWORD = "user_password";

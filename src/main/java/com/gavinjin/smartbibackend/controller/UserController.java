@@ -2,7 +2,8 @@ package com.gavinjin.smartbibackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gavinjin.smartbibackend.model.domain.User;
-import com.gavinjin.smartbibackend.model.dto.*;
+import com.gavinjin.smartbibackend.model.dto.DeleteRequest;
+import com.gavinjin.smartbibackend.model.dto.user.*;
 import com.gavinjin.smartbibackend.model.vo.LoginUserVO;
 import com.gavinjin.smartbibackend.model.vo.UserVO;
 import com.gavinjin.smartbibackend.util.ResultUtils;
@@ -125,16 +126,16 @@ public class UserController {
     /**
      * Delete a user
      *
-     * @param userDeleteRequest
+     * @param deleteRequest
      * @return
      */
     @PostMapping("/delete")
     // @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
-    public BaseResponse<Boolean> deleteUser(@RequestBody UserDeleteRequest userDeleteRequest) {
-        if (userDeleteRequest == null || userDeleteRequest.getId() <= 0) {
+    public BaseResponse<Boolean> deleteUser(@RequestBody DeleteRequest deleteRequest) {
+        if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
         }
-        boolean result = userService.removeById(userDeleteRequest.getId());
+        boolean result = userService.removeById(deleteRequest.getId());
         return ResultUtils.success(result);
     }
 

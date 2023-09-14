@@ -3,7 +3,7 @@ package com.gavinjin.smartbibackend.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.gavinjin.smartbibackend.model.domain.User;
 import com.baomidou.mybatisplus.extension.service.IService;
-import com.gavinjin.smartbibackend.model.dto.UserQueryRequest;
+import com.gavinjin.smartbibackend.model.dto.user.UserQueryRequest;
 import com.gavinjin.smartbibackend.model.vo.LoginUserVO;
 import com.gavinjin.smartbibackend.model.vo.UserVO;
 

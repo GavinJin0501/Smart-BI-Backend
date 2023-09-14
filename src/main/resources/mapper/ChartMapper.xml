@@ -11,6 +11,7 @@
             <result property="chartType" column="chart_type" jdbcType="VARCHAR"/>
             <result property="genChart" column="gen_chart" jdbcType="VARCHAR"/>
             <result property="genResult" column="gen_result" jdbcType="VARCHAR"/>
+            <result property="userId" column="user_id" jdbcType="BIGINT"/>
             <result property="createTime" column="create_time" jdbcType="TIMESTAMP"/>
             <result property="updateTime" column="update_time" jdbcType="TIMESTAMP"/>
             <result property="isDeleted" column="is_deleted" jdbcType="TINYINT"/>
@@ -18,7 +19,7 @@
 
     <sql id="Base_Column_List">
         id,goal,chart_data,
-        chart_type,gen_chart,gen_result,
+        chart_type,gen_chart,gen_result, user_id,
         create_time,update_time,is_deleted
     </sql>
 </mapper>

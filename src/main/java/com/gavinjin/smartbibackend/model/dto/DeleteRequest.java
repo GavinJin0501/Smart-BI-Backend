@@ -8,7 +8,7 @@ import java.io.Serializable;
  * User delete request
  */
 @Getter
-public class UserDeleteRequest implements Serializable {
+public class DeleteRequest implements Serializable {
     /**
      * id
      */
