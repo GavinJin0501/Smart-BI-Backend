@@ -4,12 +4,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gavinjin.smartbibackend.model.domain.Chart;
 import com.gavinjin.smartbibackend.model.domain.User;
 import com.gavinjin.smartbibackend.model.dto.DeleteRequest;
-import com.gavinjin.smartbibackend.model.dto.chart.ChartAddRequest;
-import com.gavinjin.smartbibackend.model.dto.chart.ChartEditRequest;
-import com.gavinjin.smartbibackend.model.dto.chart.ChartQueryRequest;
-import com.gavinjin.smartbibackend.model.dto.chart.ChartUpdateRequest;
+import com.gavinjin.smartbibackend.model.dto.chart.*;
 import com.gavinjin.smartbibackend.service.ChartService;
 import com.gavinjin.smartbibackend.service.UserService;
+import com.gavinjin.smartbibackend.util.ExcelUtils;
 import com.gavinjin.smartbibackend.util.ResultUtils;
 import com.gavinjin.smartbibackend.util.ThrowUtils;
 import com.gavinjin.smartbibackend.util.common.BaseResponse;
@@ -17,11 +15,15 @@ import com.gavinjin.smartbibackend.util.common.ErrorCode;
 import com.gavinjin.smartbibackend.util.exception.BusinessException;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RandomStringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.io.File;
 
 @RestController
 @RequestMapping("/chart")
@@ -195,4 +197,53 @@ public class ChartController {
         return ResultUtils.success(result);
     }
 
+    /**
+     * File uploading
+     *
+     * @param multipartFile
+     * @param genChartByAIRequest
+     * @param request
+     * @return
+     */
+    @PostMapping("/gen")
+    public BaseResponse<String> genChartByAI(@RequestPart("file") MultipartFile multipartFile,
+                                             GenChartByAIRequest genChartByAIRequest, HttpServletRequest request) {
+        // Get chart info from user
+        String name = genChartByAIRequest.getName();
+        String goal = genChartByAIRequest.getGoal();
+        String chartType = genChartByAIRequest.getChartType();
+        // Validate
+        ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "Goal is empty!");
+        ThrowUtils.throwIf(StringUtils.isNotBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "Name too long!");
+        ThrowUtils.throwIf(StringUtils.isNotBlank(chartType) && chartType.length() > 100, ErrorCode.PARAMS_ERROR, "Chart type too long!");
+
+        // Combine goal, chartType with excelData
+        StringBuilder userInput = new StringBuilder();
+        userInput.append("You are a data analyst. Please give me the chart and analysis with the given goal and raw data.\n");
+        userInput.append("Analysis goal: ").append(goal).append("\n");
+        String excelData = ExcelUtils.excelToString(multipartFile);
+        userInput.append("My data: ").append(excelData).append("\n");
+        return ResultUtils.success(userInput.toString());
+
+        // // Get file uploaded by user and process it => data compression, keywords extraction
+        // User loginUser = userService.getLoginUser(request);
+        // // 文件目录：根据业务、用户来划分
+        // String uuid = RandomStringUtils.randomAlphanumeric(8);
+        // String filename = uuid + "-" + multipartFile.getOriginalFilename();
+        // File file = null;
+        // try {
+        //     return ResultUtils.success("");
+        // } catch (Exception e) {
+        //     // log.error("file upload error, filepath = " + filepath, e);
+        //     throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
+        // } finally {
+        //     if (file != null) {
+        //         // 删除临时文件
+        //         boolean delete = file.delete();
+        //         if (!delete) {
+        //             // log.error("file delete error, filepath = {}", filepath);
+        //         }
+        //     }
+        // }
+    }
 }

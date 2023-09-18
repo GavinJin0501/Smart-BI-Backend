@@ -11,6 +11,7 @@ public interface ChartConstant {
     String DB_COL_GEN_CHART = "gen_chart";
     String DB_COL_GEN_RESULT = "gen_result";
     String DB_COL_USER_ID = "user_id";
+    String DB_COL_NAME = "name";
     String DB_COL_CREATE_TIME = "create_time";
     String DB_COL_UPDATE_TIME = "update_time";
     String DB_COL_IS_DELETED = "is_deleted";

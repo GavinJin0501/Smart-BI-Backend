@@ -20,6 +20,11 @@ public class Chart implements Serializable {
     private Long id;
 
     /**
+     * Chart name
+     */
+    private String name;
+
+    /**
      * Analysis goal
      */
     private String goal;

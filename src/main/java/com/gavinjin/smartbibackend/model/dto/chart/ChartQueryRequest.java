@@ -14,6 +14,11 @@ import java.io.Serializable;
 @Data
 public class ChartQueryRequest extends PageRequest implements Serializable {
     /**
+     * Chart name
+     */
+    private String name;
+
+    /**
      * id
      */
     private Long id;

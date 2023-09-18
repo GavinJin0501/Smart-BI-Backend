@@ -1,10 +1,13 @@
 package com.gavinjin.smartbibackend.model.dto.user;
 
+import lombok.Data;
+
 import java.io.Serializable;
 
 /**
  * User update personal information request
  */
+@Data
 public class UserUpdateMyRequest implements Serializable {
     /**
      * Username

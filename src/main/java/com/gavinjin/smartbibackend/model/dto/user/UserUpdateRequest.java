@@ -1,11 +1,12 @@
 package com.gavinjin.smartbibackend.model.dto.user;
 
+import lombok.Data;
 import lombok.Getter;
 
 /**
  * User update request
  */
-@Getter
+@Data
 public class UserUpdateRequest {
     /**
      * id

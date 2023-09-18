@@ -1,5 +1,6 @@
 package com.gavinjin.smartbibackend.model.dto.user;
 
+import lombok.Data;
 import lombok.Getter;
 
 import java.io.Serializable;
@@ -7,7 +8,7 @@ import java.io.Serializable;
 /**
  * User query request
  */
-@Getter
+@Data
 public class UserQueryRequest extends PageRequest implements Serializable {
     /**
      * id

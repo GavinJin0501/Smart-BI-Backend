@@ -4,31 +4,17 @@ import lombok.Data;
 
 import java.io.Serializable;
 
-/**
- * Chart update request
- *
- */
 @Data
-public class ChartUpdateRequest implements Serializable {
+public class GenChartByAIRequest implements Serializable {
     /**
      * Chart name
      */
     private String name;
 
     /**
-     * id
-     */
-    private Long id;
-
-    /**
      * Analysis goal
      */
     private String goal;
-
-    /**
-     * Data of chart
-     */
-    private String chartData;
 
     /**
      * Chart type
