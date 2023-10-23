@@ -15,7 +15,7 @@ import java.util.Map;
 public class OpenAiApi {
     // Use application.yml to decouple configuration
     private final static String URL = "https://api.openai.com/v1/chat/completions";
-    private final static String SECRET_KEY = "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";
+    private final static String SECRET_KEY = System.getenv("OPENAI_API_KEY") == null ? "" : System.getenv("OPENAI_API_KEY");
     private final static String SETTING = "You are a data analyst and frontend development expert. I will give you data in the following format:\n" +
             "Analysis goal:\n" +
             "{The requirements or goal of data analysis}\n" +
