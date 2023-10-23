@@ -1,7 +1,6 @@
 package com.gavinjin.smartbibackend.model.dto.user;
 
 import lombok.Data;
-import lombok.Getter;
 
 import java.io.Serializable;
 

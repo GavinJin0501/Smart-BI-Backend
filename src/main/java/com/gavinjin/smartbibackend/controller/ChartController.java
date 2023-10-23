@@ -1,10 +1,13 @@
 package com.gavinjin.smartbibackend.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.gavinjin.smartbibackend.api.OpenAiApi;
+import com.gavinjin.smartbibackend.api.YuCongmingApi;
 import com.gavinjin.smartbibackend.model.domain.Chart;
 import com.gavinjin.smartbibackend.model.domain.User;
 import com.gavinjin.smartbibackend.model.dto.DeleteRequest;
 import com.gavinjin.smartbibackend.model.dto.chart.*;
+import com.gavinjin.smartbibackend.model.vo.BiResponse;
 import com.gavinjin.smartbibackend.service.ChartService;
 import com.gavinjin.smartbibackend.service.UserService;
 import com.gavinjin.smartbibackend.util.ExcelUtils;
@@ -15,7 +18,6 @@ import com.gavinjin.smartbibackend.util.common.ErrorCode;
 import com.gavinjin.smartbibackend.util.exception.BusinessException;
 import com.google.gson.Gson;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.web.bind.annotation.*;
@@ -23,7 +25,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-import java.io.File;
 
 @RestController
 @RequestMapping("/chart")
@@ -35,6 +36,12 @@ public class ChartController {
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private OpenAiApi openAiApi;
+
+    @Resource
+    private YuCongmingApi yuCongmingApi;
 
     private final static Gson GSON = new Gson();
 
@@ -206,7 +213,7 @@ public class ChartController {
      * @return
      */
     @PostMapping("/gen")
-    public BaseResponse<String> genChartByAI(@RequestPart("file") MultipartFile multipartFile,
+    public BaseResponse<BiResponse> genChartByAI(@RequestPart("file") MultipartFile multipartFile,
                                              GenChartByAIRequest genChartByAIRequest, HttpServletRequest request) {
         // Get chart info from user
         String name = genChartByAIRequest.getName();
@@ -216,34 +223,46 @@ public class ChartController {
         ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "Goal is empty!");
         ThrowUtils.throwIf(StringUtils.isNotBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "Name too long!");
         ThrowUtils.throwIf(StringUtils.isNotBlank(chartType) && chartType.length() > 100, ErrorCode.PARAMS_ERROR, "Chart type too long!");
+        User loginUser = userService.getLoginUser(request);
 
+        // User Input
         // Combine goal, chartType with excelData
         StringBuilder userInput = new StringBuilder();
-        userInput.append("You are a data analyst. Please give me the chart and analysis with the given goal and raw data.\n");
-        userInput.append("Analysis goal: ").append(goal).append("\n");
+        userInput.append("Analysis goal:\n");
+        if (StringUtils.isNotBlank(chartType)) {
+            goal += ". Please use " + chartType;
+        }
+        userInput.append(goal).append("\n");
         String excelData = ExcelUtils.excelToString(multipartFile);
-        userInput.append("My data: ").append(excelData).append("\n");
-        return ResultUtils.success(userInput.toString());
+        userInput.append("Raw data:\n").append(excelData).append("\n");
 
-        // // Get file uploaded by user and process it => data compression, keywords extraction
-        // User loginUser = userService.getLoginUser(request);
-        // // 文件目录：根据业务、用户来划分
-        // String uuid = RandomStringUtils.randomAlphanumeric(8);
-        // String filename = uuid + "-" + multipartFile.getOriginalFilename();
-        // File file = null;
-        // try {
-        //     return ResultUtils.success("");
-        // } catch (Exception e) {
-        //     // log.error("file upload error, filepath = " + filepath, e);
-        //     throw new BusinessException(ErrorCode.SYSTEM_ERROR, "上传失败");
-        // } finally {
-        //     if (file != null) {
-        //         // 删除临时文件
-        //         boolean delete = file.delete();
-        //         if (!delete) {
-        //             // log.error("file delete error, filepath = {}", filepath);
-        //         }
-        //     }
-        // }
+        // 2 AI models to invoke
+        String result = openAiApi.doChat(userInput.toString(), false);
+        // String result = yuCongmingApi.doChat(YuCongmingApi.SMART_BI_ID, userInput.toString());
+
+        String[] parts = result.split("【【【【【");
+        if (parts.length < 3) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI generation error");
+        }
+        String genChart = parts[1].trim();
+        String genResult = parts[2].trim();
+
+        // Save the chart to db
+        Chart chart = new Chart();
+        chart.setName(name);
+        chart.setGoal(goal);
+        chart.setChartData(excelData);
+        chart.setChartType(chartType);
+        chart.setGenChart(genChart);
+        chart.setGenResult(genResult);
+        chart.setUserId(loginUser.getId());
+        boolean saveResult = chartService.save(chart);
+        ThrowUtils.throwIf(!saveResult, ErrorCode.SYSTEM_ERROR, "Fail to save chart");
+
+        BiResponse biResponse = new BiResponse();
+        biResponse.setGenChart(genChart);
+        biResponse.setGenResult(genResult);
+        biResponse.setChartId(chart.getId());
+        return ResultUtils.success(biResponse);
     }
 }
