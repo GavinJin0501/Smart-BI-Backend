@@ -1,8 +1,10 @@
 package com.gavinjin.smartbibackend.controller;
 
+import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gavinjin.smartbibackend.api.OpenAiApi;
 import com.gavinjin.smartbibackend.api.YuCongmingApi;
+import com.gavinjin.smartbibackend.manager.RedisLimiterManager;
 import com.gavinjin.smartbibackend.model.domain.Chart;
 import com.gavinjin.smartbibackend.model.domain.User;
 import com.gavinjin.smartbibackend.model.dto.DeleteRequest;
@@ -25,6 +27,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadPoolExecutor;
+
+import static com.gavinjin.smartbibackend.util.constant.ChartConstant.*;
 
 @RestController
 @RequestMapping("/chart")
@@ -42,6 +51,12 @@ public class ChartController {
 
     @Resource
     private YuCongmingApi yuCongmingApi;
+
+    @Resource
+    private RedisLimiterManager redisLimiterManager;
+
+    @Resource
+    private ThreadPoolExecutor threadPoolExecutor;
 
     private final static Gson GSON = new Gson();
 
@@ -205,7 +220,7 @@ public class ChartController {
     }
 
     /**
-     * File uploading
+     * Generate chart using AI
      *
      * @param multipartFile
      * @param genChartByAIRequest
@@ -219,11 +234,25 @@ public class ChartController {
         String name = genChartByAIRequest.getName();
         String goal = genChartByAIRequest.getGoal();
         String chartType = genChartByAIRequest.getChartType();
-        // Validate
+
+        // Validate user input
         ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "Goal is empty!");
         ThrowUtils.throwIf(StringUtils.isNotBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "Name too long!");
         ThrowUtils.throwIf(StringUtils.isNotBlank(chartType) && chartType.length() > 100, ErrorCode.PARAMS_ERROR, "Chart type too long!");
         User loginUser = userService.getLoginUser(request);
+
+        // Check Rate Limit: One RateLimiter for each user
+        redisLimiterManager.doRateLimit("genChartByAI_ " + loginUser.getId());
+
+        // Validate uploaded file name and size
+        long size = multipartFile.getSize();
+        final long ONE_MB = 1024 * 1024L;
+        ThrowUtils.throwIf(size > ONE_MB, ErrorCode.PARAMS_ERROR, "File size exceeds 1M");
+
+        String originalFilename = multipartFile.getOriginalFilename();
+        String suffix = FileUtil.getSuffix(originalFilename);
+        final List<String> validFileSuffix = Arrays.asList("xlsx", "xls", "csv");
+        ThrowUtils.throwIf(!validFileSuffix.contains(suffix), ErrorCode.PARAMS_ERROR, "File extension is invalid");
 
         // User Input
         // Combine goal, chartType with excelData
@@ -236,33 +265,78 @@ public class ChartController {
         String excelData = ExcelUtils.excelToString(multipartFile);
         userInput.append("Raw data:\n").append(excelData).append("\n");
 
-        // 2 AI models to invoke
-        String result = openAiApi.doChat(userInput.toString(), false);
-        // String result = yuCongmingApi.doChat(YuCongmingApi.SMART_BI_ID, userInput.toString());
-
-        String[] parts = result.split("【【【【【");
-        if (parts.length < 3) {
-            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "AI generation error");
-        }
-        String genChart = parts[1].trim();
-        String genResult = parts[2].trim();
-
-        // Save the chart to db
+        // Save the chart to db before using AI --> async
         Chart chart = new Chart();
         chart.setName(name);
         chart.setGoal(goal);
         chart.setChartData(excelData);
         chart.setChartType(chartType);
-        chart.setGenChart(genChart);
-        chart.setGenResult(genResult);
+        chart.setStatus(STATUS_WAIT);
         chart.setUserId(loginUser.getId());
         boolean saveResult = chartService.save(chart);
         ThrowUtils.throwIf(!saveResult, ErrorCode.SYSTEM_ERROR, "Fail to save chart");
 
+        // Submit an async task to the ThreadPoolExecutor
+        try {
+            CompletableFuture.runAsync(() -> {
+                // Modify the task status to "running":
+                // 1. Reduce the risk of repetitive execution
+                // 2. Let the user know their task is being executed
+                Chart updatedChart = chartService.getById(chart.getId());
+                if (updatedChart == null) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR);
+                } else if (!STATUS_WAIT.equals(updatedChart.getStatus())) {
+                    throw new BusinessException(ErrorCode.PARAMS_ERROR, "Gen chart status is not waiting");
+                }
+
+                updatedChart.setStatus(STATUS_RUNNING);
+                boolean b = chartService.updateById(updatedChart);
+                if (!b) {
+                    handleChartUpdateError(chart.getId(), "Fail to modify chart status to waiting");
+                    return;
+                }
+
+                // 2 AI models to invoke
+                String result = openAiApi.doChat(userInput.toString(), false);
+                // String result = yuCongmingApi.doChat(YuCongmingApi.SMART_BI_ID, userInput.toString());
+
+                String[] parts = result.split("【【【【【");
+                if (parts.length < 3) {
+                    handleChartUpdateError(chart.getId(), "AI generation error");
+                    return;
+                }
+                String genChart = parts[1].trim();
+                String genResult = parts[2].trim();
+
+                Chart updateChartResult = new Chart();
+                updateChartResult.setId(chart.getId());
+                updateChartResult.setGenChart(genChart);
+                updateChartResult.setGenResult(genResult);
+                updateChartResult.setStatus(STATUS_SUCCEEDED);
+                boolean updateResult = chartService.updateById(updateChartResult);
+                if (!updateResult) {
+                    handleChartUpdateError(chart.getId(), "Fail to modify chart status to succeeded");
+                }
+            }, threadPoolExecutor);
+        } catch (RejectedExecutionException e) {
+            throw new BusinessException(ErrorCode.TOO_MANY_REQUESTS);
+        } catch (Exception e) {
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "Task queue error");
+        }
+
         BiResponse biResponse = new BiResponse();
-        biResponse.setGenChart(genChart);
-        biResponse.setGenResult(genResult);
         biResponse.setChartId(chart.getId());
         return ResultUtils.success(biResponse);
+    }
+
+    private void handleChartUpdateError(long chartId, String execMessage) {
+        Chart chart = new Chart();
+        chart.setId(chartId);
+        chart.setStatus(STATUS_FAILED);
+        chart.setExecMessage(execMessage);
+        boolean result = chartService.updateById(chart);
+        if (!result) {
+            log.error("Fail to modify chart status to failed " + chartId + ": " + execMessage);
+        }
     }
 }

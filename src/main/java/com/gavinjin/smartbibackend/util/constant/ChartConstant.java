@@ -15,4 +15,9 @@ public interface ChartConstant {
     String DB_COL_CREATE_TIME = "create_time";
     String DB_COL_UPDATE_TIME = "update_time";
     String DB_COL_IS_DELETED = "is_deleted";
+
+    String STATUS_WAIT = "wait";
+    String STATUS_RUNNING = "running";
+    String STATUS_SUCCEEDED = "succeeded";
+    String STATUS_FAILED = "failed";
 }

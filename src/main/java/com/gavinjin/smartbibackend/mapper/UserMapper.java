@@ -3,6 +3,8 @@ package com.gavinjin.smartbibackend.mapper;
 import com.gavinjin.smartbibackend.model.domain.User;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
+import java.util.Map;
+
 /**
 * @author gavin
 * @description 针对表【user(User)】的数据库操作Mapper
@@ -10,7 +12,6 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 * @Entity generator.domain.User
 */
 public interface UserMapper extends BaseMapper<User> {
-
 }
 
 

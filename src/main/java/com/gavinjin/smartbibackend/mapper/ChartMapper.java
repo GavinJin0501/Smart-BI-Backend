@@ -3,6 +3,9 @@ package com.gavinjin.smartbibackend.mapper;
 import com.gavinjin.smartbibackend.model.domain.Chart;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 
+import java.util.List;
+import java.util.Map;
+
 /**
 * @author gavin
 * @description 针对表【chart(Chart)】的数据库操作Mapper
@@ -10,7 +13,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 * @Entity generator.domain.Chart
 */
 public interface ChartMapper extends BaseMapper<Chart> {
-
+    List<Map<String, Object>> queryChartData(String querySql);
 }
 
 
