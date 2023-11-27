@@ -4,6 +4,7 @@ import cn.hutool.core.io.FileUtil;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.gavinjin.smartbibackend.api.OpenAiApi;
 import com.gavinjin.smartbibackend.api.YuCongmingApi;
+import com.gavinjin.smartbibackend.business_mq.BiMessageProducer;
 import com.gavinjin.smartbibackend.manager.RedisLimiterManager;
 import com.gavinjin.smartbibackend.model.domain.Chart;
 import com.gavinjin.smartbibackend.model.domain.User;
@@ -58,7 +59,8 @@ public class ChartController {
     @Resource
     private ThreadPoolExecutor threadPoolExecutor;
 
-    private final static Gson GSON = new Gson();
+    @Resource
+    private BiMessageProducer biMessageProducer;
 
     /**
      * Create a chart
@@ -326,6 +328,53 @@ public class ChartController {
 
         BiResponse biResponse = new BiResponse();
         biResponse.setChartId(chart.getId());
+        return ResultUtils.success(biResponse);
+    }
+
+    @PostMapping("/gen/mq")
+    public BaseResponse<BiResponse> genChartByAIMq(@RequestPart("file") MultipartFile multipartFile,
+                                                 GenChartByAIRequest genChartByAIRequest, HttpServletRequest request) {
+        // Get chart info from user
+        String name = genChartByAIRequest.getName();
+        String goal = genChartByAIRequest.getGoal();
+        String chartType = genChartByAIRequest.getChartType();
+
+        // Validate user input
+        ThrowUtils.throwIf(StringUtils.isBlank(goal), ErrorCode.PARAMS_ERROR, "Goal is empty!");
+        ThrowUtils.throwIf(StringUtils.isNotBlank(name) && name.length() > 100, ErrorCode.PARAMS_ERROR, "Name too long!");
+        ThrowUtils.throwIf(StringUtils.isNotBlank(chartType) && chartType.length() > 100, ErrorCode.PARAMS_ERROR, "Chart type too long!");
+        User loginUser = userService.getLoginUser(request);
+
+        // Check Rate Limit: One RateLimiter for each user
+        redisLimiterManager.doRateLimit("genChartByAI_ " + loginUser.getId());
+
+        // Validate uploaded file name and size
+        long size = multipartFile.getSize();
+        final long ONE_MB = 1024 * 1024L;
+        ThrowUtils.throwIf(size > ONE_MB, ErrorCode.PARAMS_ERROR, "File size exceeds 1M");
+
+        String originalFilename = multipartFile.getOriginalFilename();
+        String suffix = FileUtil.getSuffix(originalFilename);
+        final List<String> validFileSuffix = Arrays.asList("xlsx", "xls", "csv");
+        ThrowUtils.throwIf(!validFileSuffix.contains(suffix), ErrorCode.PARAMS_ERROR, "File extension is invalid");
+
+        // Save the chart to db before using AI --> async
+        String excelData = ExcelUtils.excelToString(multipartFile);
+        Chart chart = new Chart();
+        chart.setName(name);
+        chart.setGoal(goal);
+        chart.setChartData(excelData);
+        chart.setChartType(chartType);
+        chart.setStatus(STATUS_WAIT);
+        chart.setUserId(loginUser.getId());
+        boolean saveResult = chartService.save(chart);
+        ThrowUtils.throwIf(!saveResult, ErrorCode.SYSTEM_ERROR, "Fail to save chart");
+
+        Long newChartId = chart.getId();
+        biMessageProducer.sendMessage(String.valueOf(newChartId));
+
+        BiResponse biResponse = new BiResponse();
+        biResponse.setChartId(newChartId);
         return ResultUtils.success(biResponse);
     }
 

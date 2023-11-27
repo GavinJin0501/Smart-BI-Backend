@@ -1,0 +1,43 @@
+package com.gavinjin.smartbibackend.mq.direct;
+
+import com.rabbitmq.client.Channel;
+import com.rabbitmq.client.Connection;
+import com.rabbitmq.client.ConnectionFactory;
+import com.rabbitmq.client.DeliverCallback;
+
+import java.nio.charset.StandardCharsets;
+
+public class DirectConsumer {
+    private static final String EXCHANGE_NAME = "direct-exchange";
+
+    public static void main(String[] args) throws Exception {
+        ConnectionFactory factory = new ConnectionFactory();
+        factory.setHost("localhost");
+
+        Connection connection = factory.newConnection();
+        Channel channel = connection.createChannel();
+        channel.exchangeDeclare(EXCHANGE_NAME, "direct");
+
+        String queueName = "xiaoyu_queue";
+        channel.queueDeclare(queueName, true, false, false, null);
+        channel.queueBind(queueName, EXCHANGE_NAME, "xiaoyu");
+
+        String queueName2 = "xiaopi_queue";
+        channel.queueDeclare(queueName2, true, false, false, null);
+        channel.queueBind(queueName2, EXCHANGE_NAME, "xiaopi");
+
+        DeliverCallback xiaoyuDeliverCallback = (consumerTag, delivery) -> {
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
+            System.out.println(" [xiaoyu] Received '" + delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+        };
+        DeliverCallback xiaopiDeliverCallback = (consumerTag, delivery) -> {
+            String message = new String(delivery.getBody(), StandardCharsets.UTF_8);
+            System.out.println(" [xiaopi] Received '" + delivery.getEnvelope().getRoutingKey() + "':'" + message + "'");
+        };
+
+        channel.basicConsume(queueName, true, xiaoyuDeliverCallback, consumerTag -> {
+        });
+        channel.basicConsume(queueName2, true, xiaopiDeliverCallback, consumerTag -> {
+        });
+    }
+}
