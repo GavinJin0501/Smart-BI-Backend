@@ -27,8 +27,7 @@
         create_time,update_time,is_deleted
     </sql>
 
-    <select id="quer
-    yChartData" parameterType="string" resultType="map">
+    <select id="queryChartData" parameterType="string" resultType="map">
         ${querySql}
     </select>
 </mapper>
